@@ -5,10 +5,12 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load the repo-root .env by resolved path (not Next's own default of
-// frontend/.env.local) so this reads the same single shared file the
-// backend does. Must happen before anything below reads process.env.
-const envPath = path.resolve(__dirname, '../.env');
+// Load .env before anything below reads process.env. This app's own
+// ./.env wins; ../.env is honoured too so the same config works when the
+// frontend lives inside the fitech_ monorepo next to the backend.
+const envPath = fs.existsSync(path.resolve(__dirname, '.env'))
+  ? path.resolve(__dirname, '.env')
+  : path.resolve(__dirname, '../.env');
 const envLocalPath = path.resolve(__dirname, '.env.local');
 
 if (typeof process.loadEnvFile === 'function') {
@@ -81,7 +83,10 @@ const csp = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   turbopack: {
-    root: path.resolve(__dirname, '..'),
+    // Workspace root when inside the monorepo, this directory otherwise.
+    root: fs.existsSync(path.resolve(__dirname, '../package.json')) && fs.readFileSync(path.resolve(__dirname, '../package.json'), 'utf8').includes('"workspaces"')
+      ? path.resolve(__dirname, '..')
+      : __dirname,
   },
   // Disables Next.js's own dev-mode indicator — the floating circular
   // "N" badge it renders in the bottom-left corner during `next dev`.
